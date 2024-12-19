@@ -1,0 +1,122 @@
+---
+title: "HR Analysis"
+output: html_notebook
+---
+
+Importing necessary libraries 
+```{r}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(janitor)
+library(ggthemes)
+
+```
+
+#LOADING DATASET
+```{r}
+hr <- read_xlsx("HRanalysis.xlsx")
+```
+
+#SETTING UP DATA TYPES
+```{r}
+hr <- hr %>% mutate_at(vars( HireDate, `Date of Birth`, `Today's Date`), as.Date, origin = "1899-12-30")
+hr <- hr %>% mutate_at(vars(Age, `Length of Service`), as.integer)
+hr$`Employee ID` <- as.numeric(hr$`Employee ID`)
+hr$HireYear <- year(hr$HireDate)
+
+```
+
+#FEATURE CREATION
+```{r}
+#create an empty vector for age group column
+hr$'Age Group' <- length(hr$Age)
+ 
+#fill in the empty vector
+hr$`Age Group` <- ifelse (hr$Age <= 25, hr$`Age Group`[] <- "18-25", ifelse
+  (hr$Age <= 35,
+  hr$`Age Group`[] <- "26-35", ifelse
+  (hr$Age <= 45,
+  hr$`Age Group`[] <- "36-45", ifelse
+  (hr$Age <= 55, 
+  hr$`Age Group`[] <-"46-55",
+  hr$`Age Group`[] <- "56 Above" ))))
+```
+
+#KEY METRICS AND DATA GROUPING
+```{r}
+key_metrics <- hr %>% summarise(Total_Employees = length(`Employee ID`),
+                           Average_Age = mean(Age) )
+key_metrics
+
+#group data for analysis
+
+year_count <- hr %>% group_by(HireYear) %>% count()
+department_count <- hr %>% group_by(Department) %>% count()
+age_group_count <- hr %>% group_by(`Age Group`) %>% count()
+LOS_count <- hr %>% group_by(`LOS Range`) %>% count()
+job_grade_count <- hr %>% group_by(`Job Grade`) %>% count()
+
+```
+
+#PLOT 1- Number of Employees hired per year 
+```{r}
+#line chart
+year_count %>% ggplot(aes(HireYear, n)) +
+  geom_line() +
+  geom_label(aes(label=n))+
+  scale_x_continuous(n.breaks = 20) +
+  xlab("Year") +
+  theme(axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major.x = element_line()) +
+  ggtitle("Number of Employees hired per year")
+
+```
+
+#PLOT 2- Total Employees by Department
+```{r}
+#bar chart
+department_count %>% ggplot(aes(reorder(Department, n),  n)) +
+  geom_bar(stat = 'identity') + 
+  geom_text(aes(label = n,), vjust= -1.3) +
+  xlab("Departments") +
+  theme(axis.text.y  = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank()) +
+  ggtitle("Total Employees by Department")
+```
+
+
+#PLOT 3- Total Employees by Age Group
+```{r}
+#column chart
+age_group_count %>% ggplot(aes(n, reorder(`Age Group`, n))) + 
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label= n), hjust = -1.5) + 
+  ylab('Age Group') +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.grid = element_blank()) +
+  ggtitle("Total Employees by Age Group")
+```
+
+
+```{r}
+#pcolumn chart
+LOS_count %>% ggplot(aes(n, reorder(`LOS Range`, n))) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label = n), hjust= -1.5) + 
+  ylab('Length of Service') +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.grid = element_blank()) +
+  ggtitle("Total Employee by Length of Service")
+
+```
+
